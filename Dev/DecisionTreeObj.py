@@ -12,7 +12,6 @@ class DecisionTreeObj(object):
 
     def __init__(self, objectName=None, valueMatrix=None):
         self.leftVal = None
-        self.middleVal = None
         self.rightVal = None
         self.paramName = objectName
         self.values = valueMatrix
@@ -23,8 +22,6 @@ class DecisionTreeObj(object):
     def insertChild(self, objectName=None, valueMatrix=None):
         if self.leftVal is None:
             self.leftVal = DecisionTreeObj(objectName, valueMatrix)
-        elif self.middleVal is None:
-            self.middleVal = DecisionTreeObj(objectName, valueMatrix)
         else:
             self.rightVal = DecisionTreeObj(objectName, valueMatrix)
             

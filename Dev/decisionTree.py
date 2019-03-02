@@ -37,21 +37,28 @@ def calcEntropy(positives, negatives):
 # How to get a singular file:
 # https://stackoverflow.com/questions/13223737/how-to-read-a-file-in-other-directory-in-python
 def calculateDecisionMatrix():
-    fastaDir = os.fsencode("C:\Users\Tyler\eclipse-workspace\Comp5970P2\5970_6970_SP_19_PROJECT_2\fasta")
-    decisionMatrix = [[0 for _ in range(0, 150)] in range(0, 8)]
+    decisionMatrix = [[0 for _ in range(0, 8)] for _ in range(0, 150)]
+    if not os.path.exists('X:\\fasta'):
+        return 0
     fileLoc = 0
-    saDir = os.fsencode("C:\Users\Tyler\eclipse-workspace\Comp5970P2\5970_6970_SP_19_PROJECT_2\sa")
-    for file in os.listdir(fastaDir):
+    for file in os.listdir('X:\\fasta'):
         filename = os.fsdecode(file)
-        saFilename = filename[:4] + ".sa"
-        saFile = open(saDir+saFilename, "r")
-        buriedVal = saFile.readline().count('B')
-        exposedVal = saFile.readline().count('E')
-        if buriedVal > exposedVal:
+        fastaFile = open('X:\\fasta\\' + filename, 'r')
+        fastaLine = ""
+        saLine = ""
+        for i, line in enumerate(fastaFile):
+            fastaLine = line
+        saFilename = filename[:4] + '.sa'
+        saFile = open('X:\\sa\\'+saFilename, 'r')
+        for i, line in enumerate(saFile):
+            saLine = line
+        buriedVal = saLine.count('B')
+        exposedVal = saLine.count('E')
+        if buriedVal > (3 * exposedVal):
             decisionMatrix[fileLoc][7] = 0
         else:
             decisionMatrix[fileLoc][7] = 1
-        optimalVal = calculateHighestOccurences(file.readline())
+        optimalVal = calculateHighestOccurences(fastaLine[:len(fastaLine) - 1])
         for i in range(0, 7):
             decisionMatrix[fileLoc][i] = optimalVal[i]
         fileLoc+=1
@@ -60,26 +67,28 @@ def calculateDecisionMatrix():
 def calculateHighestOccurences(aminoList):
     valueCounter = [[0 for _ in range(0, 3)] for _ in range(0,7)]
     aminoProperties = {
-        'A': [1,0,0,1,1,0,0],
-        'C': [1,0,0,1,0,0,0],
-        'D': [0,1,1,1,0,0,0],
-        'E': [0,1,1,0,0,0,1],
-        'F': [1,0,0,0,0,1,1],
-        'G': [1,0,0,1,1,0,0],
-        'H': [0,1,2,0,0,1,1],
-        'I': [1,0,0,0,0,2,1],
-        'K': [0,1,2,0,0,0,1],
-        'L': [1,0,0,0,0,2,1],
-        'M': [1,0,0,0,0,0,1],
-        'N': [0,1,0,1,0,0,0],
-        'P': [1,0,0,1,0,0,0],
-        'Q': [0,1,0,0,0,0,1],
-        'R': [0,1,2,0,0,0,1],
-        'S': [0,1,0,1,1,0,0],
-        'T': [1,1,0,1,0,0,0],
-        'V': [1,0,0,1,0,2,1],
-        'W': [1,0,0,0,0,1,1],
-        'Y': [1,1,0,0,0,1,1]}
+        # [Hydrophobic, Polar, Small, Proline, Tiny, Aliphatic,
+        # Aromatic, Positive, Negative, Charged]
+        'A': [1,0,1,0,1,0,0,0,0,0],
+        'C': [1,0,1,0,0,0,0,0,0,0],
+        'D': [0,1,1,0,0,0,0,0,1,1],
+        'E': [0,1,0,0,0,0,0,0,1,1],
+        'F': [1,0,0,0,0,0,1,0,0,0],
+        'G': [1,0,1,0,1,0,0,0,0,0],
+        'H': [0,1,0,0,0,0,1,1,0,1],
+        'I': [1,0,0,0,0,1,0,0,0,0],
+        'K': [0,1,0,0,0,0,0,1,0,1],
+        'L': [1,0,0,0,0,1,0,0,0,0],
+        'M': [1,0,0,0,0,0,0,0,0,0],
+        'N': [0,1,1,0,0,0,0,0,0,0],
+        'P': [1,0,1,1,0,0,0,0,0,0],
+        'Q': [0,1,0,0,0,0,0,0,0,0],
+        'R': [0,1,0,0,0,0,0,1,0,1],
+        'S': [0,1,1,0,1,0,0,0,0,0],
+        'T': [1,1,1,0,0,0,0,0,0,0],
+        'V': [1,0,1,0,0,1,0,0,0,0],
+        'W': [1,0,0,0,0,0,1,0,0,0],
+        'Y': [1,1,0,0,0,0,1,0,0,0]}
     for i in range(0, len(aminoList)):
         currentChar = aminoProperties[aminoList[i]]
         for j in range(0, 7):

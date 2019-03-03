@@ -7,21 +7,14 @@ import math
 import os
 import DecisionTreeObj
 
-def calcInfoGain(infoArray, totPos, totNeg, numAttributes = 2):
+def calcInfoGain(infoArray, totPos, totNeg):
     negativeVals = 0
     positiveVals = 0
     infoGainTotal = 0.0
-    for i in range(0, numAttributes):
-        for x in range(0, len(infoArray[0])):
-            if(infoArray[0][x] != i):
-                continue
-            if(infoArray[1][x] == 1):
-                positiveVals+=1
-            else:
-                negativeVals+=1
-        infoGainTotal += ((positiveVals + negativeVals)/len(infoArray[0])) * calcEntropy(positiveVals, negativeVals)
-        positiveVals = 0
-        negativeVals = 0
+    for i in range(0, 2):
+        positiveVals = infoArray[i][1]
+        negativeVals = infoArray[i][0]
+        infoGainTotal += ((positiveVals + negativeVals)/(totPos + totNeg)) * calcEntropy(positiveVals, negativeVals)
     return calcEntropy(totPos, totNeg) - infoGainTotal
 
 def calcEntropy(positives, negatives):
@@ -36,72 +29,113 @@ def calcEntropy(positives, negatives):
 # https://stackoverflow.com/questions/10377998/how-can-i-iterate-over-files-in-a-given-directory
 # How to get a singular file:
 # https://stackoverflow.com/questions/13223737/how-to-read-a-file-in-other-directory-in-python
-def calculateDecisionMatrix():
-    decisionMatrix = [[0 for _ in range(0, 8)] for _ in range(0, 150)]
-    if not os.path.exists('X:\\fasta'):
-        return 0
-    fileLoc = 0
-    for file in os.listdir('X:\\fasta'):
-        filename = os.fsdecode(file)
-        fastaFile = open('X:\\fasta\\' + filename, 'r')
-        fastaLine = ""
-        saLine = ""
-        for i, line in enumerate(fastaFile):
-            fastaLine = line
-        saFilename = filename[:4] + '.sa'
-        saFile = open('X:\\sa\\'+saFilename, 'r')
-        for i, line in enumerate(saFile):
-            saLine = line
-        buriedVal = saLine.count('B')
-        exposedVal = saLine.count('E')
-        if buriedVal > (3 * exposedVal):
-            decisionMatrix[fileLoc][7] = 0
+def calculateDecisionTree(currentRoot):
+    bestAttSoFar = ""
+    bestIGSoFar = 0.0
+    currentValues = currentRoot.getValues()
+    rowLen = len(currentValues[0]) - 1
+    posNegMatrix = [[0,0],[0,0]]
+    for j in range(rowLen):
+        for i in range(0, len(currentValues)):
+            if(currentValues[i][j] == 0):
+                if(currentValues[i][rowLen] == 0):
+                    posNegMatrix[0][0] += 1
+                else:
+                    posNegMatrix[0][1] += 1
+            else:
+                if(currentValues[i][rowLen] == 0):
+                    posNegMatrix[1][0] += 1
+                else:
+                    posNegMatrix[1][1] += 1
+        thisValue = calcInfoGain(posNegMatrix, posNegMatrix[1][0] + posNegMatrix[1][1], posNegMatrix[0][0] + posNegMatrix[0][1])
+        if thisValue > bestIGSoFar:
+            bestIGSoFar = thisValue
+            bestAttSoFar = currentRoot.getDictVal(j)
+        posNegMatrix = [[0,0],[0,0]]
+    if bestIGSoFar <= 0.0:
+        counter = 0
+        for i in range(0, len(currentValues)):
+            if currentValues[i][len(currentValues[0]) - 1] == 1:
+                counter+=1
+            else:
+                counter-=1
+        if counter >= 0:
+            currentRoot.paramName = "True"
         else:
-            decisionMatrix[fileLoc][7] = 1
-        optimalVal = calculateHighestOccurences(fastaLine[:len(fastaLine) - 1])
-        for i in range(0, 7):
-            decisionMatrix[fileLoc][i] = optimalVal[i]
-        fileLoc+=1
-    return decisionMatrix
+            currentRoot.paramName = "False"
+    elif (len(currentValues) == 2):
+        if posNegMatrix[0][0] > posNegMatrix[0][1]:
+            if posNegMatrix[1][0] > posNegMatrix[1][1]:
+                currentRoot.paramName = "False"
+            else:
+                currentRoot.insertChild("False")
+                currentRoot.insertChild("True")
+        else:
+            if posNegMatrix[1][1] > posNegMatrix[1][0]:
+                currentRoot.paramName = "True"
+            else:
+                currentRoot.insertChild("True")
+                currentRoot.insertChild("False")
+    else:
+        currentRoot.insertChild(bestAttSoFar, currentValues)
+        currentRoot.insertChild(bestAttSoFar, currentValues)
+        calculateDecisionTree(currentRoot.leftVal)
+        calculateDecisionTree(currentRoot.rightVal)
 
-def calculateHighestOccurences(aminoList):
-    valueCounter = [[0 for _ in range(0, 3)] for _ in range(0,7)]
+def getFeatureList(aminoName):
     aminoProperties = {
         # [Hydrophobic, Polar, Small, Proline, Tiny, Aliphatic,
-        # Aromatic, Positive, Negative, Charged]
-        'A': [1,0,1,0,1,0,0,0,0,0],
-        'C': [1,0,1,0,0,0,0,0,0,0],
-        'D': [0,1,1,0,0,0,0,0,1,1],
-        'E': [0,1,0,0,0,0,0,0,1,1],
-        'F': [1,0,0,0,0,0,1,0,0,0],
-        'G': [1,0,1,0,1,0,0,0,0,0],
-        'H': [0,1,0,0,0,0,1,1,0,1],
-        'I': [1,0,0,0,0,1,0,0,0,0],
-        'K': [0,1,0,0,0,0,0,1,0,1],
-        'L': [1,0,0,0,0,1,0,0,0,0],
-        'M': [1,0,0,0,0,0,0,0,0,0],
-        'N': [0,1,1,0,0,0,0,0,0,0],
-        'P': [1,0,1,1,0,0,0,0,0,0],
-        'Q': [0,1,0,0,0,0,0,0,0,0],
-        'R': [0,1,0,0,0,0,0,1,0,1],
-        'S': [0,1,1,0,1,0,0,0,0,0],
-        'T': [1,1,1,0,0,0,0,0,0,0],
-        'V': [1,0,1,0,0,1,0,0,0,0],
-        'W': [1,0,0,0,0,0,1,0,0,0],
-        'Y': [1,1,0,0,0,0,1,0,0,0]}
-    for i in range(0, len(aminoList)):
-        currentChar = aminoProperties[aminoList[i]]
-        for j in range(0, 7):
-            valueCounter[j][currentChar[j]]+=1
-    optimalMatrix = [0 for _ in range(0, 7)]
-    for i in range(0, 7):
-        if (valueCounter[i][2] > valueCounter[i][1]) & (valueCounter[i][2] > valueCounter[i][0]):
-            optimalMatrix[i] = 2
-        elif valueCounter[i][1] > valueCounter[i][0]:
-            optimalMatrix[i] = 1
-        else:
-            optimalMatrix[i] = 0
-    return optimalMatrix
+        # Aromatic, Positive, Negative, Charged, Placeholder for B/E Val]
+        'A': [1,0,1,0,1,0,0,0,0,0,0],
+        'C': [1,0,1,0,0,0,0,0,0,0,0],
+        'D': [0,1,1,0,0,0,0,0,1,1,0],
+        'E': [0,1,0,0,0,0,0,0,1,1,0],
+        'F': [1,0,0,0,0,0,1,0,0,0,0],
+        'G': [1,0,1,0,1,0,0,0,0,0,0],
+        'H': [0,1,0,0,0,0,1,1,0,1,0],
+        'I': [1,0,0,0,0,1,0,0,0,0,0],
+        'K': [0,1,0,0,0,0,0,1,0,1,0],
+        'L': [1,0,0,0,0,1,0,0,0,0,0],
+        'M': [1,0,0,0,0,0,0,0,0,0,0],
+        'N': [0,1,1,0,0,0,0,0,0,0,0],
+        'P': [1,0,1,1,0,0,0,0,0,0,0],
+        'Q': [0,1,0,0,0,0,0,0,0,0,0],
+        'R': [0,1,0,0,0,0,0,1,0,1,0],
+        'S': [0,1,1,0,1,0,0,0,0,0,0],
+        'T': [1,1,1,0,0,0,0,0,0,0,0],
+        'V': [1,0,1,0,0,1,0,0,0,0,0],
+        'W': [1,0,0,0,0,0,1,0,0,0,0],
+        'Y': [1,1,0,0,0,0,1,0,0,0,0]}
+    return aminoProperties[aminoName]
             
-        
-        
+def getBaseArrayDict():
+    arrayDict = {
+        0:'Hydrophobic', 
+        1:'Polar', 
+        2:'Small', 
+        3:'Proline',
+        4:'Tiny', 
+        5:'Aliphatic', 
+        6:'Aromatic', 
+        7:'Positive', 
+        8:'Negative', 
+        9:'Charged'}
+    return arrayDict     
+
+def getBEValues(aminoString, buriedExposedString):
+    BEValueArray = [[0] for _ in range(len(aminoString))]
+    for i in range(0, len(aminoString)):
+        BEValueArray[i] = getFeatureList(aminoString[i])
+        if(buriedExposedString[i] == 'B'):
+            BEValueArray[i][10] = 0
+        else:
+            BEValueArray[i][10] = 1
+    return BEValueArray
+
+if __name__ == "__main__":
+    trainAminoString = ""
+    trainBuriedExposedString = ""
+    testAminoString
+    trueBuriedExposedString
+    fileCounter = 0
+    trainingRatio = 0.75   

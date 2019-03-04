@@ -176,6 +176,8 @@ if __name__ == "__main__":
     trainBuriedExposedString = ""
     testAminoString = ""
     trueBuriedExposedString = ""
+    professorAminoString = []
+    professorSAFiles = []
     fileCounter = 0
     for file in os.listdir('X:\\fasta'):
         filename = os.fsdecode(file)
@@ -185,17 +187,27 @@ if __name__ == "__main__":
         for i, line in enumerate(fastaFile):
             fastaLine = line
         saFilename = filename[:4] + '.sa'
-        saFile = open('X:\\sa\\'+saFilename, 'r')
-        for i, line in enumerate(saFile):
-            saLine = line
+        if(fileCounter < 150):
+            saFile = open('X:\\sa\\'+saFilename, 'r')
+            for i, line in enumerate(saFile):
+                saLine = line
+                if saLine[0] == '>':
+                    saLine = saLine[5:len(saLine)]
+        else:
+            professorSAFiles.append(saFilename)
         fastaLine = fastaLine[0:len(fastaLine) - 1]
+        if fastaLine[0] == '>':
+            fastaLine = fastaLine[5:len(fastaLine)]
         if(fileCounter < 100):
             trainAminoString += fastaLine
             trainBuriedExposedString += saLine
             fileCounter+=1
-        else:
+        elif(fileCounter < 150):
             testAminoString += fastaLine
             trueBuriedExposedString += saLine
+            fileCounter+=1
+        else:
+            professorAminoString.append(fastaLine)
     trainingMatrix = getBEValues(trainAminoString, trainBuriedExposedString)
     arrayDict = getBaseArrayDict()
     rootObject = dtobj.DecisionTreeObj("root", trainingMatrix, arrayDict)
@@ -216,7 +228,18 @@ if __name__ == "__main__":
                 falsePos+=1.0
             else:
                 truePos+=1.0
+    accuracy = (truePos + trueNeg)/len(expectedBuriedExposedString)
     precision = truePos/(truePos + falsePos)
     recall = truePos/(truePos+falseNeg)
     f1score = 2*(precision*recall)/(precision+recall)
-    print("True Pos: %d \n True Neg: %d \n False Pos: %d \n False Neg: %d \n Precision: %f \n Recall: %f \n F1: %f" % (truePos, trueNeg, falsePos, falseNeg, precision, recall, f1score))
+    print("True Pos: %d \n True Neg: %d \n False Pos: %d \n False Neg: %d \n Accuracy: %f \n Precision: %f \n Recall: %f \n F1: %f" % (truePos, trueNeg, falsePos, falseNeg, accuracy, precision, recall, f1score))
+    for i in range(0, len(professorAminoString)):
+        testResult = getTestValues(rootObject, professorAminoString[i])
+        print("Provided String: %s\nDT Output      : %s\n" %(professorAminoString[i], testResult))
+        if testResult.count('B') < 3*testResult.count('E'):
+            print("The provided amino acid string is classified as a primarily exposed Protein")
+        else:
+            print("The provided amino acid string is classified as a primarily buried Protein")
+        saFile = open('X:\\sa\\'+saFilename, 'w+')
+        saFile.write('>%s%s' %(saFilename, getTestValues(rootObject, professorAminoString[i])))
+        saFile.close()

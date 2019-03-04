@@ -5,7 +5,7 @@ Created on Feb 25, 2019
 '''
 import math
 import os
-import DecisionTreeObj
+import DecisionTreeObj as dtobj
 
 def calcInfoGain(infoArray, totPos, totNeg):
     negativeVals = 0
@@ -31,11 +31,11 @@ def calcEntropy(positives, negatives):
 # https://stackoverflow.com/questions/13223737/how-to-read-a-file-in-other-directory-in-python
 def calculateDecisionTree(currentRoot):
     bestAttSoFar = ""
-    bestIGSoFar = 0.0
+    bestIGSoFar = -2.0
     currentValues = currentRoot.getValues()
     rowLen = len(currentValues[0]) - 1
     posNegMatrix = [[0,0],[0,0]]
-    for j in range(rowLen):
+    for j in range(0, rowLen):
         for i in range(0, len(currentValues)):
             if(currentValues[i][j] == 0):
                 if(currentValues[i][rowLen] == 0):
@@ -52,7 +52,7 @@ def calculateDecisionTree(currentRoot):
             bestIGSoFar = thisValue
             bestAttSoFar = currentRoot.getDictVal(j)
         posNegMatrix = [[0,0],[0,0]]
-    if bestIGSoFar <= 0.0:
+    if bestIGSoFar <= 0:
         counter = 0
         for i in range(0, len(currentValues)):
             if currentValues[i][len(currentValues[0]) - 1] == 1:
@@ -68,14 +68,14 @@ def calculateDecisionTree(currentRoot):
             if posNegMatrix[1][0] > posNegMatrix[1][1]:
                 currentRoot.paramName = "False"
             else:
-                currentRoot.insertChild("False")
-                currentRoot.insertChild("True")
+                currentRoot.leftVal.paramName = "False"
+                currentRoot.rightVal.paramName = "True"
         else:
             if posNegMatrix[1][1] > posNegMatrix[1][0]:
                 currentRoot.paramName = "True"
             else:
-                currentRoot.insertChild("True")
-                currentRoot.insertChild("False")
+                currentRoot.leftVal.paramName = "True"
+                currentRoot.rightVal.paramName = "False"
     else:
         currentRoot.insertChild(bestAttSoFar, currentValues)
         currentRoot.insertChild(bestAttSoFar, currentValues)
@@ -108,34 +108,115 @@ def getFeatureList(aminoName):
         'Y': [1,1,0,0,0,0,1,0,0,0,0]}
     return aminoProperties[aminoName]
             
-def getBaseArrayDict():
-    arrayDict = {
-        0:'Hydrophobic', 
-        1:'Polar', 
-        2:'Small', 
-        3:'Proline',
-        4:'Tiny', 
-        5:'Aliphatic', 
-        6:'Aromatic', 
-        7:'Positive', 
-        8:'Negative', 
-        9:'Charged'}
+def getBaseArrayDict(isReverse=False):
+    if not(isReverse):
+        arrayDict = {
+            0:'Hydrophobic', 
+            1:'Polar', 
+            2:'Small', 
+            3:'Proline',
+            4:'Tiny', 
+            5:'Aliphatic', 
+            6:'Aromatic', 
+            7:'Positive', 
+            8:'Negative', 
+            9:'Charged'}
+    else:
+        arrayDict = {
+            'Hydrophobic':0, 
+            'Polar':1, 
+            'Small':2, 
+            'Proline':3,
+            'Tiny':4, 
+            'Aliphatic':5, 
+            'Aromatic':6, 
+            'Positive':7, 
+            'Negative':8, 
+            'Charged':9}
     return arrayDict     
 
 def getBEValues(aminoString, buriedExposedString):
-    BEValueArray = [[0] for _ in range(len(aminoString))]
+    BEValueArray = [[0] for _ in range(0, len(aminoString))]
     for i in range(0, len(aminoString)):
-        BEValueArray[i] = getFeatureList(aminoString[i])
-        if(buriedExposedString[i] == 'B'):
-            BEValueArray[i][10] = 0
-        else:
-            BEValueArray[i][10] = 1
+        if not(aminoString[i] == '\n'):
+            BEValueArray[i] = getFeatureList(aminoString[i])
+            if(buriedExposedString[i] == 'B'):
+                BEValueArray[i][10] = 0
+            else:
+                BEValueArray[i][10] = 1
     return BEValueArray
+
+def getTestValues(dtRoot, testAminoSequence):
+    BEExpectedVals = ""
+    arrayDict = getBaseArrayDict(True)
+    for i in range(0, len(testAminoSequence)):
+        searching = True
+        currentNode = dtRoot
+        while(searching):
+            currentProperties = getFeatureList(testAminoSequence[i])
+            index = arrayDict[currentNode.getName()]
+            if currentProperties[index] == 1:
+                currentNode = currentNode.rightVal
+            else:
+                currentNode = currentNode.leftVal
+            if currentNode.getName() == 'False':
+                BEExpectedVals += 'B'
+                searching = False
+            elif currentNode.getName() == 'True':
+                BEExpectedVals += 'E'
+                searching = False
+    return BEExpectedVals
+        
+        
+# How to get a singular file:
+# https://stackoverflow.com/questions/13223737/how-to-read-a-file-in-other-directory-in-python
 
 if __name__ == "__main__":
     trainAminoString = ""
     trainBuriedExposedString = ""
-    testAminoString
-    trueBuriedExposedString
+    testAminoString = ""
+    trueBuriedExposedString = ""
     fileCounter = 0
-    trainingRatio = 0.75   
+    for file in os.listdir('X:\\fasta'):
+        filename = os.fsdecode(file)
+        fastaFile = open('X:\\fasta\\' + filename, 'r')
+        fastaLine = ""
+        saLine = ""
+        for i, line in enumerate(fastaFile):
+            fastaLine = line
+        saFilename = filename[:4] + '.sa'
+        saFile = open('X:\\sa\\'+saFilename, 'r')
+        for i, line in enumerate(saFile):
+            saLine = line
+        fastaLine = fastaLine[0:len(fastaLine) - 1]
+        if(fileCounter < 100):
+            trainAminoString += fastaLine
+            trainBuriedExposedString += saLine
+            fileCounter+=1
+        else:
+            testAminoString += fastaLine
+            trueBuriedExposedString += saLine
+    trainingMatrix = getBEValues(trainAminoString, trainBuriedExposedString)
+    arrayDict = getBaseArrayDict()
+    rootObject = dtobj.DecisionTreeObj("root", trainingMatrix, arrayDict)
+    calculateDecisionTree(rootObject)
+    expectedBuriedExposedString = getTestValues(rootObject, testAminoString)
+    truePos = 0.0
+    trueNeg = 0.0
+    falsePos = 0.0
+    falseNeg = 0.0
+    for i in range(0, len(testAminoString)):
+        if expectedBuriedExposedString[i] == 'B':
+            if trueBuriedExposedString[i] == 'B':
+                trueNeg+=1.0
+            else:
+                falseNeg+=1.0
+        else:
+            if trueBuriedExposedString[i] == 'B':
+                falsePos+=1.0
+            else:
+                truePos+=1.0
+    precision = truePos/(truePos + falsePos)
+    recall = truePos/(truePos+falseNeg)
+    f1score = 2*(precision*recall)/(precision+recall)
+    print("True Pos: %d \n True Neg: %d \n False Pos: %d \n False Neg: %d \n Precision: %f \n Recall: %f \n F1: %f" % (truePos, trueNeg, falsePos, falseNeg, precision, recall, f1score))
